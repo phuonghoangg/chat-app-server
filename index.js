@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose')
 const dotenv = require('dotenv')
+const socket = require('socket.io')
 const messageRouter = require('./routes/messageRoutes')
 const userRouter = require('./routes/userRoutes')
 dotenv.config();
@@ -25,4 +26,30 @@ mongoose.connect(process.env.MONGO_URL,{
 const server = app.listen(process.env.PORT,()=>{
     console.log(`server is running port:  ${process.env.PORT}`);
 })
+
+const io = socket(server,{
+    cors: {
+        origin: "http://localhost:3000",
+        methods: ["GET", "POST"],
+        credentials: true,
+    }
+})
+
+global.onlineUsers = new Map()
+
+io.on("connection",(socket)=>{
+    global.chatSocket = socket;
+    socket.on("add-user",(userId)=>{
+        onlineUsers.set(userId,socket.id)
+    })
+    socket.on("send-msg",(data)=>{
+        console.log("asd",{data});
+        const sendUserSocket = onlineUsers.get(data.to);
+        if(sendUserSocket){
+            socket.to(sendUserSocket).emit("msg-recieved",data.message)
+        }
+    })
+})
+
+
 
